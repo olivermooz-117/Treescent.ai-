@@ -2,7 +2,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 from config import Config
-from extensions import bcrypt, db, jwt, migrate
+from extensions import bcrypt, db, jwt, limiter, migrate
 
 
 def create_app(config_class=Config):
@@ -14,6 +14,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     jwt.init_app(app)
     bcrypt.init_app(app)
+    limiter.init_app(app)
     CORS(app, origins=app.config["CORS_ORIGINS"])
 
     # Import models so Flask-Migrate can see them
