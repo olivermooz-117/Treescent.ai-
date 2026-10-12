@@ -20,9 +20,14 @@ def create_app(config_class=Config):
     # Import models so Flask-Migrate can see them
     import models  # noqa: F401
 
-    # Blueprints get registered here as we build them:
+    # Blueprints
     from routes.auth import auth_bp
+    from routes.links import links_bp
+    from routes.public import public_bp
+
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(links_bp, url_prefix="/api/links")
+    app.register_blueprint(public_bp, url_prefix="/api/public")
 
     @app.get("/api/health")
     def health():
