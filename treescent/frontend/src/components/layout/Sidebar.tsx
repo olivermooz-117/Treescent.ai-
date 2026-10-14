@@ -7,13 +7,6 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-  { name: 'Links', href: '/dashboard/links', icon: LinkIcon },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: ChartIcon },
-  { name: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
-];
-
 const HomeIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -39,17 +32,18 @@ const SettingsIcon = () => (
   </svg>
 );
 
-const UserMenuIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-  </svg>
-);
-
 const LogoutIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
   </svg>
 );
+
+const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+  { name: 'Links', href: '/dashboard/links', icon: LinkIcon },
+  { name: 'Analytics', href: '/dashboard/analytics', icon: ChartIcon },
+  { name: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
+];
 
 export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const location = useLocation();
@@ -63,17 +57,13 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   return (
     <>
       <div
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity lg:hidden ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`sidebar-backdrop${isOpen ? ' is-open' : ''}`}
         onClick={onClose}
         aria-hidden="true"
       />
 
       <aside
-        className={`
-          fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700
-          transform transition-transform duration-300 ease-in-out lg:translate-x-0
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
+        className={`app-sidebar ${isOpen ? 'is-open' : ''}`}
         role="navigation"
         aria-label="Main navigation"
       >
@@ -99,14 +89,17 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto" aria-label="Main">
             <ul className="space-y-1" role="list">
               {navigation.map((item) => {
-                const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+                const isActive = location.pathname === item.href ||
+                  (item.href !== '/dashboard' && location.pathname.startsWith(item.href + '/'));
                 const Icon = item.icon;
                 return (
                   <li key={item.name}>
-                    <NavLink
+                      <NavLink
                       to={item.href}
+                      end={item.href === '/dashboard'}
                       onClick={onClose}
                       className={({ isActive: active }) => `
+                        sidebar-link
                         flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
                         ${active
                           ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'

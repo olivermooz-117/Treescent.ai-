@@ -1,4 +1,5 @@
-import { LabelHTMLAttributes, forwardRef } from 'react';
+import { forwardRef } from 'react';
+import type { LabelHTMLAttributes } from 'react';
 
 interface LabelProps extends LabelHTMLAttributes<HTMLLabelElement> {
   required?: boolean;
@@ -8,7 +9,7 @@ export const Label = forwardRef<HTMLLabelElement, LabelProps>(
   ({ children, required = false, className = '', ...props }, ref) => (
     <label
       ref={ref}
-      className={`block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ${className}`}
+      className={`ui-label block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 ${className}`}
       {...props}
     >
       {children}

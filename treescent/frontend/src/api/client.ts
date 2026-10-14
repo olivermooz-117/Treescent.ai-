@@ -1,7 +1,18 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import type { AuthResponse, LoginRequest, RegisterRequest, UpdateProfileRequest, User } from '../types/api';
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import type {
+  Analytics,
+  AuthResponse,
+  CreateLinkRequest,
+  Link,
+  LoginRequest,
+  PublicProfileResponse,
+  RegisterRequest,
+  UpdateLinkRequest,
+  UpdateProfileRequest,
+  User,
+} from '../types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
 
 class ApiClient {
   private client: AxiosInstance;
@@ -34,7 +45,9 @@ class ApiClient {
 
     this.client.interceptors.response.use(
       (response) => response,
-      async (error: AxiosError) => {
+      async (error: AxiosError<{ error?: unknown }>) => {
+        const serverMessage = error.response?.data?.error;
+        if (typeof serverMessage === 'string') error.message = serverMessage;
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
         if (error.response?.status === 401 && !originalRequest._retry && this.refreshToken) {
@@ -152,6 +165,46 @@ class ApiClient {
   async updateProfile(data: UpdateProfileRequest): Promise<User> {
     const response = await this.client.patch<{ user: User }>('/auth/me', data);
     return response.data.user;
+  }
+
+  async getLinks(): Promise<Link[]> {
+    const response = await this.client.get<{ links: Link[] }>('/links');
+    return response.data.links;
+  }
+
+  async createLink(data: CreateLinkRequest): Promise<Link> {
+    const response = await this.client.post<{ link: Link }>('/links', data);
+    return response.data.link;
+  }
+
+  async updateLink(id: number, data: UpdateLinkRequest): Promise<Link> {
+    const response = await this.client.patch<{ link: Link }>(`/links/${id}`, data);
+    return response.data.link;
+  }
+
+  async deleteLink(id: number): Promise<void> {
+    await this.client.delete(`/links/${id}`);
+  }
+
+  async reorderLinks(order: number[]): Promise<Link[]> {
+    const response = await this.client.put<{ links: Link[] }>('/links/reorder', { order });
+    return response.data.links;
+  }
+
+  async getAnalytics(): Promise<Analytics> {
+    const response = await this.client.get<Analytics>('/analytics');
+    return response.data;
+  }
+
+  async getPublicProfile(username: string): Promise<PublicProfileResponse> {
+    const response = await this.client.get<PublicProfileResponse>(
+      `/public/${encodeURIComponent(username)}`
+    );
+    return response.data;
+  }
+
+  getTrackedLinkUrl(linkId: number): string {
+    return `${API_BASE_URL}/public/r/${linkId}`;
   }
 
   async healthCheck(): Promise<{ status: string; app: string }> {

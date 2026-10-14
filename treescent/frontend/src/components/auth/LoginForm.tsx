@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Alert, Spinner, Label } from '../ui';
+import { Button, Input, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Alert, Label } from '../ui';
 
 export const LoginForm = () => {
   const navigate = useNavigate();

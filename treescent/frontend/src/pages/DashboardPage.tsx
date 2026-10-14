@@ -1,87 +1,67 @@
-import { useAuthStore } from '../../store/authStore';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Button } from '../components/ui';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { api } from '../api/client';
+import { useAuthStore } from '../store/authStore';
+import type { Analytics, Link as ProfileLink } from '../types/api';
 
 export const DashboardPage = () => {
-  const { user, isLoading } = useAuthStore();
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const [links, setLinks] = useState<ProfileLink[]>([]);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    Promise.all([api.getLinks(), api.getAnalytics()])
+      .then(([userLinks, stats]) => {
+        setLinks(userLinks);
+        setAnalytics(stats);
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load dashboard data.'))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <section className="page-content">
+      <div className="page-heading">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">Welcome back, {user?.display_name || user?.username}</p>
+          <p className="eyebrow">Overview</p>
+          <h1>Good to see you, {user?.display_name || user?.username}</h1>
+          <p className="page-subtitle">Your Treescent page is ready whenever you are.</p>
         </div>
-        <Button variant="primary">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Link
-        </Button>
+        <button type="button" className="ui-button ui-button--primary" onClick={() => navigate('/dashboard/links')}>
+          <span aria-hidden="true">＋</span> Add a link
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card variant="outlined" padding="md">
-          <CardHeader>
-            <CardTitle>Total Links</CardTitle>
-            <CardDescription>Active links on your page</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">0</div>
-          </CardContent>
-        </Card>
+      {error && <div className="dashboard-error" role="alert">{error}</div>}
 
-        <Card variant="outlined" padding="md">
-          <CardHeader>
-            <CardTitle>Total Clicks</CardTitle>
-            <CardDescription>All-time link clicks</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">0</div>
-          </CardContent>
-        </Card>
-
-        <Card variant="outlined" padding="md">
-          <CardHeader>
-            <CardTitle>Profile Views</CardTitle>
-            <CardDescription>Visits to your page</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">0</div>
-          </CardContent>
-        </Card>
+      <div className="stat-grid">
+        <article className="stat-card"><span>Total links</span><strong>{isLoading ? '—' : analytics?.total_links.toLocaleString() ?? 0}</strong><small>On your Treescent page</small></article>
+        <article className="stat-card"><span>Total clicks</span><strong>{isLoading ? '—' : analytics?.total_clicks.toLocaleString() ?? 0}</strong><small>All-time link visits</small></article>
+        <article className="stat-card"><span>Active links</span><strong>{isLoading ? '—' : analytics?.active_links.toLocaleString() ?? 0}</strong><small>Visible to visitors</small></article>
       </div>
 
-      <Card variant="outlined" padding="md">
-        <CardHeader>
-          <CardTitle>Your Links</CardTitle>
-          <CardDescription>Manage your link page content</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No links yet</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding your first link.</p>
-            <div className="mt-6">
-              <Button variant="primary">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Add your first link
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <section className="panel dashboard-links">
+        <div className="panel-heading">
+          <div><h2>Your links</h2><p>Quick look at the links on your page.</p></div>
+          <Link className="text-button" to="/dashboard/links">Manage links <span aria-hidden="true">→</span></Link>
+        </div>
+        {isLoading ? <p className="empty-state">Loading your links…</p> : links.length === 0 ? (
+          <div className="empty-state"><div className="empty-icon" aria-hidden="true">↗</div><h3>Start with one great link</h3><p>Add a website or social profile to your public page.</p><button className="ui-button ui-button--primary" onClick={() => navigate('/dashboard/links')}>Add your first link</button></div>
+        ) : (
+          <ul className="dashboard-link-list">
+            {links.slice(0, 5).map((link) => (
+              <li key={link.id}>
+                <div><span className="link-mark" aria-hidden="true">↗</span><span><strong>{link.title}</strong><small>{link.url}</small></span></div>
+                <span className="dashboard-clicks">{(link.click_count ?? 0).toLocaleString()} clicks</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <p className="profile-share">Your public page <a href={`/${user?.username}`} target="_blank" rel="noreferrer">treescent.ai/{user?.username} ↗</a></p>
+    </section>
   );
 };

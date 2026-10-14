@@ -1,4 +1,5 @@
-import { HTMLAttributes, forwardRef } from 'react';
+import { forwardRef } from 'react';
+import type { HTMLAttributes } from 'react';
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'outlined' | 'elevated';
@@ -23,7 +24,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     return (
       <div
         ref={ref}
-        className={`rounded-xl ${variantStyles[variant]} ${paddingStyles[padding]} ${className}`}
+        className={`ui-card rounded-xl ${variantStyles[variant]} ${paddingStyles[padding]} ${className}`}
         {...props}
       >
         {children}
@@ -36,7 +37,7 @@ Card.displayName = 'Card';
 
 export const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ children, className = '', ...props }, ref) => (
-    <div ref={ref} className={`mb-4 ${className}`} {...props}>
+    <div ref={ref} className={`ui-card-header mb-4 ${className}`} {...props}>
       {children}
     </div>
   )
@@ -46,7 +47,7 @@ CardHeader.displayName = 'CardHeader';
 
 export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
   ({ children, className = '', ...props }, ref) => (
-    <h3 ref={ref} className={`text-lg font-semibold text-gray-900 dark:text-gray-100 ${className}`} {...props}>
+    <h3 ref={ref} className={`ui-card-title text-lg font-semibold text-gray-900 dark:text-gray-100 ${className}`} {...props}>
       {children}
     </h3>
   )
@@ -56,7 +57,7 @@ CardTitle.displayName = 'CardTitle';
 
 export const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
   ({ children, className = '', ...props }, ref) => (
-    <p ref={ref} className={`text-sm text-gray-500 dark:text-gray-400 mt-1 ${className}`} {...props}>
+    <p ref={ref} className={`ui-card-description text-sm text-gray-500 dark:text-gray-400 mt-1 ${className}`} {...props}>
       {children}
     </p>
   )
@@ -66,7 +67,7 @@ CardDescription.displayName = 'CardDescription';
 
 export const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ children, className = '', ...props }, ref) => (
-    <div ref={ref} className={className} {...props}>
+    <div ref={ref} className={`ui-card-content ${className}`} {...props}>
       {children}
     </div>
   )
@@ -76,7 +77,7 @@ CardContent.displayName = 'CardContent';
 
 export const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ children, className = '', ...props }, ref) => (
-    <div ref={ref} className={`mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3 ${className}`} {...props}>
+    <div ref={ref} className={`ui-card-footer mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center gap-3 ${className}`} {...props}>
       {children}
     </div>
   )

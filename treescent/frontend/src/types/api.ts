@@ -72,6 +72,32 @@ export interface Click {
   user_agent: string | null;
 }
 
+export interface PublicProfileResponse {
+  profile: PublicUser;
+  links: Link[];
+}
+
+export interface DailyClicks {
+  date: string;
+  clicks: number;
+}
+
+export interface LinkAnalytics {
+  id: number;
+  title: string;
+  url: string;
+  is_active: boolean;
+  click_count: number;
+}
+
+export interface Analytics {
+  total_clicks: number;
+  total_links: number;
+  active_links: number;
+  per_link: LinkAnalytics[];
+  daily: DailyClicks[];
+}
+
 export interface HealthResponse {
   status: string;
   app: string;

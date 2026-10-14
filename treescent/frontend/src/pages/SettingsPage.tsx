@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { useAuthStore } from '../../store/authStore';
-import { api } from '../../api/client';
+import { useAuthStore } from '../store/authStore';
+import { api } from '../api/client';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, Input, Button, Alert, Label } from '../components/ui';
 
 export const SettingsPage = () => {
-  const { user, updateProfile: updateProfileStore, isLoading: authLoading } = useAuthStore();
+  const { user, updateProfile: updateProfileStore } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -47,7 +47,7 @@ export const SettingsPage = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="page-content settings-page">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
         <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your account settings</p>
@@ -59,7 +59,7 @@ export const SettingsPage = () => {
           <CardDescription>Update your public profile information</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form id="profile-form" onSubmit={handleSubmit} className="settings-form">
             {(error || success) && (
               <Alert variant={success ? 'success' : 'error'} className="mb-4" onDismiss={() => { setError(''); setSuccess(''); }}>
                 {error || success}

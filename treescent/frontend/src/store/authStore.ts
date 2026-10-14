@@ -7,6 +7,7 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
   setUser: (user: User | null) => void;
   setLoading: (loading: boolean) => void;
@@ -15,6 +16,7 @@ interface AuthState {
   register: (email: string, username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateProfile: (user: User) => void;
   clearError: () => void;
   initializeAuth: () => Promise<void>;
 }
@@ -25,9 +27,11 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      isInitialized: false,
       error: null,
 
       setUser: (user) => set({ user, isAuthenticated: !!user }),
+      updateProfile: (user) => set({ user }),
       setLoading: (isLoading) => set({ isLoading }),
       setError: (error) => set({ error }),
       clearError: () => set({ error: null }),
@@ -84,9 +88,9 @@ export const useAuthStore = create<AuthState>()(
         if (api.isAuthenticated()) {
           set({ isLoading: true });
           await get().refreshUser();
-          set({ isLoading: false });
+          set({ isLoading: false, isInitialized: true });
         } else {
-          set({ isLoading: false });
+          set({ user: null, isAuthenticated: false, isLoading: false, isInitialized: true });
         }
       },
     }),

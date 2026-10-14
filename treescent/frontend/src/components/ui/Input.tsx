@@ -1,4 +1,5 @@
-import { InputHTMLAttributes, forwardRef } from 'react';
+import { forwardRef } from 'react';
+import type { InputHTMLAttributes } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -28,7 +29,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
-            className={`
+            className={`ui-input
               w-full rounded-lg border transition-colors duration-200
               placeholder:text-gray-400
               focus:outline-none focus:ring-2 focus:ring-offset-0
@@ -38,8 +39,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50 dark:bg-red-900/20'
                 : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100'
               }
-              ${className}
-            `}
+              ${className}`}
             aria-invalid={error ? 'true' : 'false'}
             aria-describedby={error ? `${inputId}-error` : helperText ? `${inputId}-helper` : undefined}
             {...props}

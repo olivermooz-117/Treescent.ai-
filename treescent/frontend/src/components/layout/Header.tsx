@@ -1,8 +1,10 @@
+import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Button } from '../ui';
+import { useTheme } from '../theme/ThemeContext';
 
 interface HeaderProps {
   onMenuClick: () => void;
+  isMenuOpen: boolean;
 }
 
 const MenuIcon = () => (
@@ -11,25 +13,33 @@ const MenuIcon = () => (
   </svg>
 );
 
-export const Header = ({ onMenuClick }: HeaderProps) => {
+export const Header = ({ onMenuClick, isMenuOpen }: HeaderProps) => {
   const { user } = useAuthStore();
+  const { isDark, toggleTheme } = useTheme();
+  const location = useLocation();
+  const pageTitle = location.pathname.split('/').filter(Boolean).at(-1) ?? 'dashboard';
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-center justify-between h-full px-4 lg:px-6">
-        <div className="flex items-center gap-4">
+    <header className="app-header">
+      <div className="header-content">
+        <div className="header-left">
           <button
-            className="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="mobile-menu-button lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
             onClick={onMenuClick}
-            aria-label="Open menu"
-            aria-expanded="false"
+            aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={isMenuOpen}
           >
             <MenuIcon />
           </button>
+          <span className="header-page-title">{pageTitle === 'dashboard' ? 'Dashboard' : pageTitle[0].toUpperCase() + pageTitle.slice(1)}</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-3">
+        <div className="header-actions">
+          <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`} title={`Switch to ${isDark ? 'light' : 'dark'} mode`}>
+            <span aria-hidden="true">{isDark ? '☀' : '☾'}</span>
+            <span className="theme-toggle-label">{isDark ? 'Light mode' : 'Dark mode'}</span>
+          </button>
+          <div className="header-user">
             <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
               <span className="text-indigo-600 dark:text-indigo-400 font-medium text-sm">
                 {user?.display_name?.charAt(0).toUpperCase() || user?.username?.charAt(0).toUpperCase() || 'U'}
