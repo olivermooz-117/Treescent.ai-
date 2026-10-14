@@ -1,19 +1,21 @@
 from flask import Blueprint, jsonify, redirect, request
-from flask_jwt_extended import jwt_required
 
 from extensions import db
 from models import Click, Link, User
+from routes.helpers import error
 
 public_bp = Blueprint("public", __name__)
 
 
-def error(message, status=400):
-    return jsonify({"error": message}), status
+def _truncate(value, max_len=500):
+    if not value:
+        return None
+    value = str(value)
+    return value[:max_len] if len(value) > max_len else value
 
 
 @public_bp.get("/<username>")
 def get_public_profile(username):
-    """Public profile page data — no auth required."""
     username = (username or "").strip().lower()
     user = User.query.filter_by(username=username).first()
     if not user:
@@ -33,22 +35,20 @@ def get_public_profile(username):
 
 @public_bp.get("/r/<int:link_id>")
 def track_and_redirect(link_id):
-    """
-    Click tracking + redirect.
-    Public page should point buttons to this endpoint instead of the real URL.
-    Example: https://yoursite.com/api/public/r/42
-    """
     link = Link.query.filter_by(id=link_id, is_active=True).first()
     if not link:
         return error("Link not found", 404)
 
-    # Log the click
-    click = Click(
-        link_id=link.id,
-        referrer=request.headers.get("Referer"),
-        user_agent=request.headers.get("User-Agent"),
-    )
-    db.session.add(click)
-    db.session.commit()
+    try:
+        click = Click(
+            link_id=link.id,
+            referrer=_truncate(request.headers.get("Referer")),
+            user_agent=_truncate(request.headers.get("User-Agent")),
+        )
+        db.session.add(click)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        # Redirect anyway — never block the visitor
 
     return redirect(link.url, code=302)

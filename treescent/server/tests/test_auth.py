@@ -21,6 +21,7 @@ class TestConfig:
     JWT_ACCESS_TOKEN_EXPIRES = 3600
     JWT_REFRESH_TOKEN_EXPIRES = 2592000
     CORS_ORIGINS = ["http://localhost:5173"]
+    RATELIMIT_ENABLED = False
 
 
 @pytest.fixture

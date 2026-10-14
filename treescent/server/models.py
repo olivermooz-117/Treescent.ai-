@@ -39,6 +39,10 @@ class User(db.Model):
 
     def to_dict(self):
         """Full account data, for the logged-in owner."""
+        created = self.created_at
+        if created is not None and created.tzinfo is None:
+            from datetime import timezone
+            created = created.replace(tzinfo=timezone.utc)
         return {
             "id": self.id,
             "email": self.email,
@@ -47,7 +51,7 @@ class User(db.Model):
             "bio": self.bio,
             "avatar_url": self.avatar_url,
             "theme": self.theme,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": created.isoformat() if created else None,
         }
 
     def to_public_dict(self):

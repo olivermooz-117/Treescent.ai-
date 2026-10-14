@@ -1,6 +1,6 @@
 import re
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -11,13 +11,14 @@ from sqlalchemy.exc import IntegrityError
 
 from extensions import db, limiter
 from models import User
+from routes.helpers import as_str, error, get_json_object
 
 auth_bp = Blueprint("auth", __name__)
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 USERNAME_RE = re.compile(r"^[a-z0-9_]{3,30}$")
+MAX_PASSWORD_BYTES = 72
 
-# Usernames become public URLs (/<username>), so block names that clash with app routes
 RESERVED_USERNAMES = {
     "api", "admin", "login", "register", "signup", "logout", "dashboard",
     "settings", "profile", "me", "static", "assets", "treescent", "about",
@@ -27,12 +28,8 @@ RESERVED_USERNAMES = {
 ALLOWED_THEMES = {"default", "light", "dark", "forest", "sunset"}
 
 
-def error(message, status=400):
-    return jsonify({"error": message}), status
-
-
 def tokens_for(user):
-    identity = str(user.id)  # JWT subject must be a string
+    identity = str(user.id)
     return {
         "access_token": create_access_token(identity=identity),
         "refresh_token": create_refresh_token(identity=identity),
@@ -42,10 +39,27 @@ def tokens_for(user):
 @auth_bp.post("/register")
 @limiter.limit("5 per minute")
 def register():
-    data = request.get_json(silent=True) or {}
-    email = (data.get("email") or "").strip().lower()
-    username = (data.get("username") or "").strip().lower()
-    password = data.get("password") or ""
+    data, err = get_json_object()
+    if err:
+        return err
+
+    email, err = as_str(data.get("email"), "email", required=True, max_len=255)
+    if err:
+        return err
+    email = email.lower()
+
+    username, err = as_str(data.get("username"), "username", required=True, max_len=30)
+    if err:
+        return err
+    username = username.lower()
+
+    password = data.get("password")
+    if not isinstance(password, str):
+        return error("password must be a string")
+    if len(password) < 8:
+        return error("Password must be at least 8 characters")
+    if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
+        return error(f"Password must be at most {MAX_PASSWORD_BYTES} bytes")
 
     if not EMAIL_RE.match(email):
         return error("A valid email is required")
@@ -55,8 +69,6 @@ def register():
         )
     if username in RESERVED_USERNAMES:
         return error("That username is not available")
-    if len(password) < 8:
-        return error("Password must be at least 8 characters")
 
     if User.query.filter_by(email=email).first():
         return error("Email already registered", 409)
@@ -69,7 +81,6 @@ def register():
     try:
         db.session.commit()
     except IntegrityError:
-        # Race condition: someone grabbed the email/username between check and insert
         db.session.rollback()
         return error("Email or username already in use", 409)
 
@@ -79,12 +90,20 @@ def register():
 @auth_bp.post("/login")
 @limiter.limit("10 per minute")
 def login():
-    data = request.get_json(silent=True) or {}
-    email = (data.get("email") or "").strip().lower()
-    password = data.get("password") or ""
+    data, err = get_json_object()
+    if err:
+        return err
+
+    email, err = as_str(data.get("email"), "email", required=True)
+    if err:
+        return err
+    email = email.lower()
+
+    password = data.get("password")
+    if not isinstance(password, str):
+        return error("Invalid email or password", 401)
 
     user = User.query.filter_by(email=email).first()
-    # Same message for unknown email and wrong password, so attackers can't probe for accounts
     if not user or not user.check_password(password):
         return error("Invalid email or password", 401)
 
@@ -114,32 +133,37 @@ def update_me():
     if not user:
         return error("User not found", 404)
 
-    data = request.get_json(silent=True) or {}
+    data, err = get_json_object()
+    if err:
+        return err
 
     if "display_name" in data:
-        value = (data["display_name"] or "").strip()
-        if len(value) > 80:
-            return error("Display name must be 80 characters or fewer")
+        value, err = as_str(data["display_name"], "display_name", max_len=80, allow_empty=True)
+        if err:
+            return err
         user.display_name = value or user.username
 
     if "bio" in data:
-        value = (data["bio"] or "").strip()
-        if len(value) > 280:
-            return error("Bio must be 280 characters or fewer")
+        value, err = as_str(data["bio"], "bio", max_len=280, allow_empty=True)
+        if err:
+            return err
         user.bio = value
 
     if "avatar_url" in data:
-        value = (data["avatar_url"] or "").strip()
+        value, err = as_str(data["avatar_url"], "avatar_url", max_len=500, allow_empty=True)
+        if err:
+            return err
         if value and not value.startswith(("http://", "https://")):
             return error("Avatar URL must start with http:// or https://")
-        if len(value) > 500:
-            return error("Avatar URL is too long")
         user.avatar_url = value or None
 
     if "theme" in data:
-        if data["theme"] not in ALLOWED_THEMES:
+        theme, err = as_str(data["theme"], "theme", required=True)
+        if err:
+            return err
+        if theme not in ALLOWED_THEMES:
             return error(f"Theme must be one of: {', '.join(sorted(ALLOWED_THEMES))}")
-        user.theme = data["theme"]
+        user.theme = theme
 
     db.session.commit()
     return jsonify({"user": user.to_dict()})

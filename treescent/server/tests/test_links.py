@@ -18,6 +18,7 @@ class TestConfig:
     JWT_ACCESS_TOKEN_EXPIRES = 3600
     JWT_REFRESH_TOKEN_EXPIRES = 2592000
     CORS_ORIGINS = ["http://localhost:5173"]
+    RATELIMIT_ENABLED = False
 
 
 @pytest.fixture
@@ -85,7 +86,7 @@ def test_create_link(client, auth_headers):
     assert data["link"]["title"] == "My Site"
     assert data["link"]["url"] == "https://example.com"
     assert data["link"]["is_active"] is True
-    assert data["link"]["position"] == 1
+    assert data["link"]["position"] == 0
     assert data["link"]["click_count"] == 0
 
 
@@ -246,7 +247,8 @@ def test_reorder_invalid_id(client, auth_headers):
         headers=auth_headers,
         json={"order": [9999]},
     )
-    assert response.status_code == 404
+    # Must be the exact set of owned link IDs — foreign/missing IDs → 400
+    assert response.status_code == 400
 
 
 def test_reorder_empty_list(client, auth_headers):

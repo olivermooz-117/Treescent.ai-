@@ -1,19 +1,27 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 
 from extensions import db
-from models import Link, User
+from models import Click, Link, User
+from routes.helpers import as_bool, as_int_list, as_str, error, get_json_object
 
 links_bp = Blueprint("links", __name__)
 
 
-def error(message, status=400):
-    return jsonify({"error": message}), status
-
-
 def get_current_user():
     return db.session.get(User, int(get_jwt_identity()))
+
+
+def click_counts_for(user_id):
+    rows = (
+        db.session.query(Link.id, func.count(Click.id))
+        .outerjoin(Click, Click.link_id == Link.id)
+        .filter(Link.user_id == user_id)
+        .group_by(Link.id)
+        .all()
+    )
+    return {link_id: count for link_id, count in rows}
 
 
 @links_bp.get("")
@@ -28,7 +36,13 @@ def list_links():
         .order_by(Link.position.asc(), Link.id.asc())
         .all()
     )
-    return jsonify({"links": [link.to_dict(include_clicks=True) for link in links]})
+    counts = click_counts_for(user.id)
+    result = []
+    for link in links:
+        data = link.to_dict()
+        data["click_count"] = counts.get(link.id, 0)
+        result.append(data)
+    return jsonify({"links": result})
 
 
 @links_bp.post("")
@@ -38,28 +52,26 @@ def create_link():
     if not user:
         return error("User not found", 404)
 
-    data = request.get_json(silent=True) or {}
-    title = (data.get("title") or "").strip()
-    url = (data.get("url") or "").strip()
+    data, err = get_json_object()
+    if err:
+        return err
 
-    if not title:
-        return error("Title is required")
-    if len(title) > 100:
-        return error("Title must be 100 characters or fewer")
-    if not url:
-        return error("URL is required")
+    title, err = as_str(data.get("title"), "title", required=True, max_len=100)
+    if err:
+        return err
+    url, err = as_str(data.get("url"), "url", required=True, max_len=2048)
+    if err:
+        return err
     if not url.startswith(("http://", "https://")):
         return error("URL must start with http:// or https://")
-    if len(url) > 2048:
-        return error("URL is too long")
 
-    # Put new link at the end
     max_pos = (
-        db.session.query(db.func.max(Link.position))
+        db.session.query(func.max(Link.position))
         .filter_by(user_id=user.id)
         .scalar()
     )
-    next_pos = (max_pos or 0) + 1
+    # Keep 0-based positions consistent with reorder
+    next_pos = 0 if max_pos is None else max_pos + 1
 
     link = Link(
         user_id=user.id,
@@ -71,7 +83,9 @@ def create_link():
     db.session.add(link)
     db.session.commit()
 
-    return jsonify({"link": link.to_dict(include_clicks=True)}), 201
+    data = link.to_dict()
+    data["click_count"] = 0
+    return jsonify({"link": data}), 201
 
 
 @links_bp.patch("/<int:link_id>")
@@ -85,31 +99,34 @@ def update_link(link_id):
     if not link:
         return error("Link not found", 404)
 
-    data = request.get_json(silent=True) or {}
+    data, err = get_json_object()
+    if err:
+        return err
 
     if "title" in data:
-        title = (data["title"] or "").strip()
-        if not title:
-            return error("Title cannot be empty")
-        if len(title) > 100:
-            return error("Title must be 100 characters or fewer")
+        title, err = as_str(data["title"], "title", required=True, max_len=100)
+        if err:
+            return err
         link.title = title
 
     if "url" in data:
-        url = (data["url"] or "").strip()
-        if not url:
-            return error("URL cannot be empty")
+        url, err = as_str(data["url"], "url", required=True, max_len=2048)
+        if err:
+            return err
         if not url.startswith(("http://", "https://")):
             return error("URL must start with http:// or https://")
-        if len(url) > 2048:
-            return error("URL is too long")
         link.url = url
 
     if "is_active" in data:
-        link.is_active = bool(data["is_active"])
+        is_active, err = as_bool(data["is_active"], "is_active")
+        if err:
+            return err
+        link.is_active = is_active
 
     db.session.commit()
-    return jsonify({"link": link.to_dict(include_clicks=True)})
+    data = link.to_dict()
+    data["click_count"] = link.clicks.count()
+    return jsonify({"link": data})
 
 
 @links_bp.delete("/<int:link_id>")
@@ -131,38 +148,42 @@ def delete_link(link_id):
 @links_bp.put("/reorder")
 @jwt_required()
 def reorder_links():
-    """
-    Body: { "order": [3, 1, 5, 2] }  ← list of link IDs in the desired order
-    """
     user = get_current_user()
     if not user:
         return error("User not found", 404)
 
-    data = request.get_json(silent=True) or {}
-    order = data.get("order")
+    data, err = get_json_object()
+    if err:
+        return err
 
-    if not isinstance(order, list) or not order:
-        return error("order must be a non-empty list of link IDs")
+    order, err = as_int_list(data.get("order"), "order")
+    if err:
+        return err
 
-    # Fetch all the user's links
     links = Link.query.filter_by(user_id=user.id).all()
     link_map = {link.id: link for link in links}
+    owned_ids = set(link_map.keys())
+    order_ids = set(order)
 
-    # Validate that every ID belongs to the user
-    for link_id in order:
-        if link_id not in link_map:
-            return error(f"Link {link_id} not found or does not belong to you", 404)
+    if len(order) != len(order_ids):
+        return error("order must not contain duplicate link IDs")
+    if order_ids != owned_ids:
+        return error("order must include every link ID exactly once")
 
-    # Update positions
     for position, link_id in enumerate(order):
         link_map[link_id].position = position
 
     db.session.commit()
 
-    # Return the new ordered list
     reordered = (
         Link.query.filter_by(user_id=user.id)
         .order_by(Link.position.asc())
         .all()
     )
-    return jsonify({"links": [link.to_dict(include_clicks=True) for link in reordered]})
+    counts = click_counts_for(user.id)
+    result = []
+    for link in reordered:
+        data = link.to_dict()
+        data["click_count"] = counts.get(link.id, 0)
+        result.append(data)
+    return jsonify({"links": result})
